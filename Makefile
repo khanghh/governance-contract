@@ -11,7 +11,7 @@ ifeq ($(shell uname -s), Linux)
     PASSWD_OPT=-u $(shell id -u):$(shell id -g) -v /etc/passwd:/etc/passwd:ro -v /etc/group:/etc/group:ro
     CURDIR_SOLC=$(shell pwd)
 else
-    CURDIR_SOLC=/tmp
+    CURDIR_SOLC=$(shell pwd)
 endif
 
 #DOCKER_OPT=--network bobthe
