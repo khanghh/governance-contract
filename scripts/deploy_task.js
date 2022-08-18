@@ -57,11 +57,11 @@ async function deployGov(hre, accounts, configPath) {
   // Initialize environment storage
   envDelegator = await hre.ethers.getContractAt("EnvStorageImp", envStorage.address, deployer); //EnvStorageImp.at(envStorage.address);
   const envParams = {
-    blocksPer: 1,
+    blocksPer: 100,
     ballotDurationMin: 86400, // 1 day
     ballotDurationMax: 604800, // 7 days
-    stakingMin: amount, // 1,500,000 wemix
-    stakingMax: amount, // 1,500,000 wemix
+    stakingMin: '1500000000000000000000000',       // 1,500,000 wemix
+    stakingMax: '1000000000000000000000000000000', // 1,000,000,000,000 wemix
     MaxIdleBlockInterval: 5,
     blockCreationTime: 1000, // 1000 ms = 1 sec
     blockRewardAmount: "1000000000000000000", // 1 wemix

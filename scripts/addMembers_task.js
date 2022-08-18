@@ -48,7 +48,7 @@ async function addMembers(hre, accounts, govContracts, configPath) {
           U2B(members[idx].ip),
           members[idx].port,
           largeToString(members[idx].stake),
-          U2B("add member " + idx),
+          U2B("add member " + members[idx].name),
           duration,
         ],
         txParam

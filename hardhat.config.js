@@ -10,7 +10,10 @@ const sendTx = require("./scripts/sendTx_task").sendTxKeep;
 const setup = require("./scripts/setup_task").setup;
 const changeEnv = require("./scripts/changeEnv_task").changeEnvVal;
 const deployGov = require("./scripts/deploy_task").deployGov;
-const addMember = require("./scripts/addMembers_task").addMembers;
+const listMembers = require("./scripts/listAllMember_task").listMembers;
+const addMembers = require("./scripts/addMembers_task").addMembers;
+const addNewMember = require("./scripts/addNewMember_task").addNewMember;
+const removeMember = require("./scripts/removeMember_task").removeMember;
 
 task("accounts", "List all accounts")
   .setAction(async (taskArgs, hre) => {
@@ -25,15 +28,38 @@ task("accounts", "List all accounts")
 task("deployGov", "Deploy governance contracts")
   .addParam('conf')
   .setAction(async (taskArgs, hre) => {
+    hre.ethers.utils.toUtf8String
     const { accounts } = await setup(hre)
     await deployGov(hre, accounts, taskArgs.conf);
   })
 
-task("addMember", "Add governance members")
+task("listMembers", "list all governance members")
+  .setAction(async (taskArgs, hre) => {
+    const { govContracts } = await setup(hre)
+    await listMembers(hre, govContracts);
+  })
+
+task("addMembers", "Add governance members")
   .addParam("conf")
   .setAction(async (taskArgs, hre) => {
     const { accounts, govContracts } = await setup(hre)
-    await addMember(hre, accounts, govContracts, taskArgs.conf);
+    await addMembers(hre, accounts, govContracts, taskArgs.conf);
+  })
+
+task("addNewMember", "Add new member")
+  .addParam("conf")
+  .addParam("name")
+  .setAction(async (taskArgs, hre) => {
+    const { accounts, govContracts } = await setup(hre)
+    await addNewMember(hre, accounts, govContracts, taskArgs.conf, taskArgs.name);
+  })
+
+task("removeMember", "Add new member")
+  .addParam("conf")
+  .addParam("name")
+  .setAction(async (taskArgs, hre) => {
+    const { accounts, govContracts } = await setup(hre)
+    await removeMember(hre, accounts, govContracts, taskArgs.conf, taskArgs.name);
   })
 
 task("changeMP", "Change maxPrioirtyFeePerGas")

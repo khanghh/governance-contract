@@ -19,7 +19,7 @@ coverage/
 coverage.json
 allFiredEvents
 
-# solidity_flattener output directory 
+# solidity_flattener output directory
 # flat/
 
 # nyc test coverage
@@ -84,3 +84,4 @@ artifacts/
 cache/
 
 .vscode/
+deployments/
