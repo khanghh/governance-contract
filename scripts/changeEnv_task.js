@@ -1,56 +1,73 @@
+const { loadJSONSync } = require('./utils')
+const fs = require('fs')
 
-async function changeEnvVal(hre, accs, govContracts, envName, types, values, msg) {
+async function changeEnvVal(hre, accounts, govContracts, envName, types, values, msg) {
   const ethers = hre.ethers;
   const U2B = ethers.utils.toUtf8Bytes;
+  const BigNumber = hre.ethers.BigNumber;
 
-  const testAccs = accs
-  const deployer = accs[0]
-  const gov = govContracts.govDelegator;
-  const envD = govContracts.envDelegator;
-  const ballotS = govContracts.ballotStorage;
-  // envName = maxPriorityFeePerGas
-  console.log("change :", envName)
+  const deployer = accounts[0]
+  const { govDelegator, envDelegator, ballotStorage } = govContracts
 
-  bfMP = await envD.getMaxPriorityFeePerGas();
-  bfGLB = await envD.getGasLimitAndBaseFee();
-  bfMB = await envD.getMaxBaseFee();
+  GL = "30000000"; //ethers.BigNumber.from(21000 * 1500);
+  maxPFee = "100" + "0".repeat(9);
+  let txParam = { gasLimit: GL, gasPrice: "110" + "0".repeat(9) };
+  let ballotLen = await govDelegator.ballotLength();
+  let txs = [];
 
-  // Initialize governance
+  const bfMP = await envDelegator.getMaxPriorityFeePerGas();
+  const bfGLB = await envDelegator.getGasLimitAndBaseFee();
+  const bfMB = await envDelegator.getMaxBaseFee();
 
-  txParam = { gasPrice: await ethers.provider.getGasPrice() };
-  tx = await gov.connect(deployer).addProposalToChangeEnv(ethers.utils.keccak256(U2B(envName)), 2, type2Bytes(ethers, types, values), U2B(msg), 86400, txParam);
-  await tx.wait();
-  txParam = { gasPrice: await ethers.provider.getGasPrice() };
-  let ballotLen = await gov.ballotLength()
-  console.log("ballotLen ", ballotLen);
-  console.log("tx 1")
-  tx = await gov.connect(testAccs[0]).vote(ballotLen, true, txParam);
-  await tx.wait();
+  console.log(`=> Submit proposal changeEnv`);
+  tx = await govDelegator
+    .connect(deployer)
+    .addProposalToChangeEnv(
+      ethers.utils.keccak256(U2B(envName)),
+      2,
+      type2Bytes(ethers, types, values),
+      U2B(msg),
+      86400,
+      txParam
+    );
+  txs.push(tx);
 
-  txParam = { gasPrice: await ethers.provider.getGasPrice() };
-  console.log("tx 2")
-  tx = await gov.connect(testAccs[1]).vote(ballotLen, true, txParam);
-  await tx.wait();
+  const ballotId = ballotLen.add(BigNumber.from(1));
+  console.log("ballotId", ballotId);
+  const needVoteNum = Math.ceil(accounts.length * 51 / 100)
+  console.log('Need vote:', needVoteNum)
+  console.log('Begin voting')
+  for (let idx = 0; idx < needVoteNum; idx++) {
+    console.log(`${accounts[idx].address} voted: yes`);
+    tx = await govDelegator.connect(accounts[idx]).vote(ballotId, true, txParam);
+    txs.push(tx);
+  }
 
-  txParam = { gasPrice: await ethers.provider.getGasPrice() };
-  console.log("tx 3")
-  tx = await gov.connect(testAccs[2]).vote(ballotLen, true, txParam);
-  await tx.wait();
-  inVoting = await gov.getBallotInVoting();
-  console.log("inVoting", inVoting)
-  state = await ballotS.getBallotState(ballotLen);
-  console.log("state", state)
+  fs.writeFileSync("./deployments/txs.json", JSON.stringify(txs), "utf-8");
 
-  afterMP = await envD.getMaxPriorityFeePerGas();
-  afterGLB = await envD.getGasLimitAndBaseFee();
-  afterMB = await envD.getMaxBaseFee();
-  console.log("max priority", bfMP, "->", afterMP);
-  console.log("blockGasLimit", bfGLB[0], "->", afterGLB[0]);
-  console.log("baseFeeMaxChangeRate", bfGLB[1], "->", afterGLB[1]);
-  console.log("gasTargetPercentage", bfGLB[2], "->", afterGLB[2]);
-  console.log("maxBaseFee", bfMB, "->", afterMB);
+  for (i = 0; i < txs.length; i++) {
+    hash = txs[i].hash;
+    receipt = await ethers.provider.waitForTransaction(hash)
+    if (receipt && receipt.status == 1) {
+      console.log(`${i}. ${hash} is ok`)
+    }
+    else {
+      console.log(`${i}. ${hash} is not ok`)
+    }
+  }
+
+  const state = await ballotStorage.getBallotState(ballotId);
+  console.log("voting state", state)
+
+  const afterMP = await envDelegator.getMaxPriorityFeePerGas();
+  const afterGLB = await envDelegator.getGasLimitAndBaseFee();
+  const afterMB = await envDelegator.getMaxBaseFee();
+  console.log("maxPriorityFeePerGas", bfMP.toNumber(), "->", afterMP.toNumber());
+  console.log("blockGasLimit", bfGLB[0].toNumber(), "->", afterGLB[0].toNumber());
+  console.log("baseFeeMaxChangeRate", bfGLB[1].toNumber(), "->", afterGLB[1].toNumber());
+  console.log("gasTargetPercentage", bfGLB[2].toNumber(), "->", afterGLB[2].toNumber());
+  console.log("maxBaseFee", bfMB.toNumber(), "->", afterMB.toNumber());
 }
-
 
 module.exports = { changeEnvVal };
 

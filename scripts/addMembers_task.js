@@ -55,11 +55,11 @@ async function addMembers(hre, accounts, govContracts, configPath) {
       );
     txs.push(tx);
 
-    ballotLen = ballotLen.add(BigNumber.from(1));
-    console.log("ballotLen ", ballotLen.toNumber());
+    const ballotId = ballotLen.add(BigNumber.from(1));
+    console.log("ballotId", ballotLen.toNumber());
     for (memIdx = 0; memIdx < Math.ceil(idx * 51 / 100); memIdx++) {
       console.log(`${members[memIdx].name} voted: yes`);
-      tx = await govDelegator.connect(accounts[memIdx]).vote(ballotLen, true, txParam);
+      tx = await govDelegator.connect(accounts[memIdx]).vote(ballotId, true, txParam);
       txs.push(tx);
     }
   }

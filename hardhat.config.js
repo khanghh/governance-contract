@@ -84,9 +84,7 @@ task("changeFee", "Change gasLimitAndBaseFee")
     let envTypes = ["uint256", "uint256", "uint256", "uint256"];
     let envValue = [args.gasLimit, args.changeRate, args.targetPerc, args.maxBasefee + "0".repeat(9)];
     envMsg = "mp test";
-    // console.log(envName, types, envValue, msg)
-    const sets = await setting(hre, args.pw);
-    await changeEnv(hre, sets, envName, envTypes, envValue, envMsg);
+    await changeEnv(hre, accounts, govContracts, envName, envTypes, envValue, envMsg);
   });
 
 task("sendTx", "send tx")

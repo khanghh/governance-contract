@@ -69,14 +69,14 @@ async function addNewMember(hre, accounts, govContracts, configPath, memberName)
     );
   txs.push(tx);
 
-  ballotLen = ballotLen.add(BigNumber.from(1));
-  console.log("ballotLen ", ballotLen.toNumber());
+  const ballotId = ballotLen.add(BigNumber.from(1));
+  console.log("ballotId", ballotId.toNumber());
   const needVoteNum = Math.ceil(govMems.length * 51 / 100)
   console.log('Need vote:', needVoteNum)
   console.log('Begin voting')
   for (let idx = 0; idx < needVoteNum; idx++) {
     console.log(`${govMems[idx].name} voted: yes`);
-    tx = await govDelegator.connect(govMems[idx].account).vote(ballotLen, true, txParam);
+    tx = await govDelegator.connect(govMems[idx].account).vote(ballotId, true, txParam);
     txs.push(tx);
   }
 
