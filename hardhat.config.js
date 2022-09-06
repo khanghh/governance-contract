@@ -11,6 +11,9 @@ const setup = require("./scripts/setup_task").setup;
 const changeEnv = require("./scripts/changeEnv_task").changeEnvVal;
 const deployGov = require("./scripts/deploy_task").deployGov;
 const listMembers = require("./scripts/listAllMember_task").listMembers;
+const getVotingInfo = require("./scripts/getVotingInfo_task").getVotingInfo;
+const voteBallot = require("./scripts/vote_task").voteBallot;
+const listBlockMiners = require("./scripts/listBlockMiners_task").listBlockMiners;
 const addMembers = require("./scripts/addMembers_task").addMembers;
 const addNewMember = require("./scripts/addNewMember_task").addNewMember;
 const removeMember = require("./scripts/removeMember_task").removeMember;
@@ -39,6 +42,13 @@ task("listMembers", "list all governance members")
     await listMembers(hre, govContracts);
   })
 
+task("listMiners", "list block miners")
+  .addParam('from', "", "", undefined, true)
+  .addParam('count')
+  .setAction(async (taskArgs, hre) => {
+    await listBlockMiners(hre, taskArgs.count, taskArgs.from)
+  })
+
 task("addMembers", "Add governance members")
   .addParam("conf")
   .setAction(async (taskArgs, hre) => {
@@ -62,15 +72,34 @@ task("removeMember", "Add new member")
     await removeMember(hre, accounts, govContracts, taskArgs.conf, taskArgs.name);
   })
 
+task("votingInfo", "Get voting ballot info")
+  .addParam("conf")
+  .addParam("ballotId", "", "", undefined, true)
+  .setAction(async (taskArgs, hre) => {
+    const { accounts, govContracts } = await setup(hre)
+    await getVotingInfo(hre, accounts, govContracts, taskArgs.conf, taskArgs.ballotId);
+  })
+
+task("vote", "vote a ballot")
+  .addParam("conf")
+  .addParam("accIndex")
+  .addParam("ballotId")
+  .addParam("decision")
+  .setAction(async (taskArgs, hre) => {
+    const { accounts, govContracts } = await setup(hre)
+    await voteBallot(hre, accounts, govContracts, taskArgs.conf, taskArgs.accIndex, taskArgs.ballotId, taskArgs.decision);
+  })
+
 task("changeMP", "Change maxPrioirtyFeePerGas")
   .addParam("envValue")
   .setAction(async (args, hre) => {
+    hre.ethers.provider.getBlock()
     const { accounts, govContracts } = await setup(hre);
-    let envName = "maxPriorityFeePerGas";
+    let envName = "blockPer";
     let envTypes = ["uint256"];
     let envValue = [args.envValue];
-    envMsg = "mp test";
-    await changeEnv(hre, sets, envName, envTypes, envValue, envMsg);
+    envMsg = "change blockPer";
+    await changeEnv(hre, accounts, govContracts, envName, envTypes, envValue, envMsg);
   });
 
 task("changeFee", "Change gasLimitAndBaseFee")

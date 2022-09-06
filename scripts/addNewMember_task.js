@@ -39,14 +39,13 @@ async function addNewMember(hre, accounts, govContracts, configPath, memberName)
   let ballotLen = await govDelegator.ballotLength();
   let txs = [];
 
-  console.log('staking')
   tx = await staking.connect(memToAdd.account).deposit({
     value: largeToString(memToAdd.stake),
     gasLimit: txParam.gasLimit,
     gasPrice: txParam.gasPrice
   });
-  txs.push(tx);
-  console.log('staking finished')
+  await ethers.provider.waitForTransaction(tx.hash)
+  console.log(`${memToAdd.name} staked ${memToAdd.stake.toString()}`)
 
   console.log(`=> Submit proposal add member ${memToAdd.name}`);
   const duration = await govDelegator.getMinVotingDuration();
@@ -71,11 +70,11 @@ async function addNewMember(hre, accounts, govContracts, configPath, memberName)
 
   const ballotId = ballotLen.add(BigNumber.from(1));
   console.log("ballotId", ballotId.toNumber());
-  const needVoteNum = Math.ceil(govMems.length * 51 / 100)
-  console.log('Need vote:', needVoteNum)
+  const needVote = Math.ceil(govMems.length * 51 / 100)
+  console.log('Need vote:', needVote)
   console.log('Begin voting')
-  for (let idx = 0; idx < needVoteNum; idx++) {
-    console.log(`${govMems[idx].name} voted: yes`);
+  for (let idx = 0; idx < needVote; idx++) {
+    console.log(`${govMems[idx].name}:${govMems[idx].account.address} voted: yes`);
     tx = await govDelegator.connect(govMems[idx].account).vote(ballotId, true, txParam);
     txs.push(tx);
   }

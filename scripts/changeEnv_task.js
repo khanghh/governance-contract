@@ -4,6 +4,7 @@ const fs = require('fs')
 async function changeEnvVal(hre, accounts, govContracts, envName, types, values, msg) {
   const ethers = hre.ethers;
   const U2B = ethers.utils.toUtf8Bytes;
+  const B2U = ethers.utils.toUtf8String;
   const BigNumber = hre.ethers.BigNumber;
 
   const deployer = accounts[0]
@@ -18,8 +19,21 @@ async function changeEnvVal(hre, accounts, govContracts, envName, types, values,
   const bfMP = await envDelegator.getMaxPriorityFeePerGas();
   const bfGLB = await envDelegator.getGasLimitAndBaseFee();
   const bfMB = await envDelegator.getMaxBaseFee();
+  const bfBlockPer = await envDelegator.getBlocksPer();
+  const bfBlockCreationTime = await envDelegator.getBlockCreationTime();
+
+  const govMems = []
+  const currenNodeNum = (await govDelegator.getNodeLength()).toNumber()
+  console.log("Governace member:")
+  for (let idx = 1; idx <= currenNodeNum; idx++) {
+    const nodeInfo = await govDelegator.getNode(idx)
+    const govMemName = ethers.utils.toUtf8String(nodeInfo.name)
+    govMems.push(govMemName)
+    console.log(govMemName)
+  }
 
   console.log(`=> Submit proposal changeEnv`);
+  console.log(deployer.address)
   tx = await govDelegator
     .connect(deployer)
     .addProposalToChangeEnv(
@@ -30,7 +44,13 @@ async function changeEnvVal(hre, accounts, govContracts, envName, types, values,
       86400,
       txParam
     );
-  txs.push(tx);
+  let receipt = await ethers.provider.waitForTransaction(tx.hash)
+  console.log(receipt)
+  if (receipt.status == 1) {
+    console.log(`tx: ${tx.hash} is ok`)
+  } else {
+    console.log(`tx: ${tx.hash} is not ok`)
+  }
 
   const ballotId = ballotLen.add(BigNumber.from(1));
   console.log("ballotId", ballotId);
@@ -38,7 +58,7 @@ async function changeEnvVal(hre, accounts, govContracts, envName, types, values,
   console.log('Need vote:', needVoteNum)
   console.log('Begin voting')
   for (let idx = 0; idx < needVoteNum; idx++) {
-    console.log(`${accounts[idx].address} voted: yes`);
+    console.log(`${govMems[idx]} voted: yes`);
     tx = await govDelegator.connect(accounts[idx]).vote(ballotId, true, txParam);
     txs.push(tx);
   }
@@ -58,15 +78,17 @@ async function changeEnvVal(hre, accounts, govContracts, envName, types, values,
 
   const state = await ballotStorage.getBallotState(ballotId);
   console.log("voting state", state)
-
   const afterMP = await envDelegator.getMaxPriorityFeePerGas();
   const afterGLB = await envDelegator.getGasLimitAndBaseFee();
   const afterMB = await envDelegator.getMaxBaseFee();
-  console.log("maxPriorityFeePerGas", bfMP.toNumber(), "->", afterMP.toNumber());
-  console.log("blockGasLimit", bfGLB[0].toNumber(), "->", afterGLB[0].toNumber());
-  console.log("baseFeeMaxChangeRate", bfGLB[1].toNumber(), "->", afterGLB[1].toNumber());
-  console.log("gasTargetPercentage", bfGLB[2].toNumber(), "->", afterGLB[2].toNumber());
-  console.log("maxBaseFee", bfMB.toNumber(), "->", afterMB.toNumber());
+  const afBlockPer = await envDelegator.getBlocksPer();
+  const afBlockCreationTime = await envDelegator.getBlockCreationTime();
+  console.log("BlockCreationTime", bfBlockCreationTime.toNumber(), "->", afBlockCreationTime.toNumber());
+  console.log("BlockPer", bfBlockPer.toNumber(), "->", afBlockPer.toNumber());
+  // console.log("blockGasLimit", bfGLB[0].toNumber(), "->", afterGLB[0].toNumber());
+  // console.log("baseFeeMaxChangeRate", bfGLB[1].toNumber(), "->", afterGLB[1].toNumber());
+  // console.log("gasTargetPercentage", bfGLB[2].toNumber(), "->", afterGLB[2].toNumber());
+  // console.log("maxBaseFee", bfMB.toNumber(), "->", afterMB.toNumber());
 }
 
 module.exports = { changeEnvVal };

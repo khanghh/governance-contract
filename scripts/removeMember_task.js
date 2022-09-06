@@ -40,11 +40,12 @@ async function removeMember(hre, accounts, govContracts, configPath, memberName)
 
   console.log(`=> Submit proposal remove member ${memToRemove.name}`);
   const duration = await govDelegator.getMinVotingDuration();
+  const lockAmount = hre.ethers.utils.parseUnits('1500000', 18)
   tx = await govDelegator
     .connect(deployer)
     .addProposalToRemoveMember(
-      votingMembers[0].addr,
-      largeToString(0),
+      memToRemove.addr,
+      lockAmount,
       U2B("remove member " + memToRemove.name),
       duration,
       txParam
@@ -52,15 +53,12 @@ async function removeMember(hre, accounts, govContracts, configPath, memberName)
   txs.push(tx);
 
   const ballotId = ballotLen.add(BigNumber.from(1));
-  // const ballotId = await govDelegator.getBallotInVoting()
-  console.log("ballotId ", ballotId.toNumber());
-  // const info = await ballotStorage.getBallotVotingInfo(ballotId)
-  // console.log(info)
-  const needVoteNum = Math.ceil(votingMembers.length * 51 / 100)
-  console.log('Need vote:', needVoteNum)
+  console.log("ballotId:", ballotId.toNumber())
+  const needVote = Math.ceil(votingMembers.length * 51 / 100)
+  console.log('Need vote:', needVote)
   console.log('Begin voting')
-  for (let idx = 0; idx < needVoteNum; idx++) {
-    console.log(`${votingMembers[idx + 2].name} voted: yes`);
+  for (let idx = 0; idx < needVote; idx++) {
+    console.log(`${votingMembers[idx].name} voted: yes`);
     tx = await govDelegator.connect(votingMembers[idx].account).vote(ballotId, true, txParam);
     txs.push(tx);
   }
@@ -83,4 +81,5 @@ async function removeMember(hre, accounts, govContracts, configPath, memberName)
 
   fs.writeFileSync('./deployments/receipts.json', JSON.stringify(receipts, null, 2), 'utf-8');
 }
+
 module.exports = { removeMember };

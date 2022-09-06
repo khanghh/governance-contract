@@ -24,14 +24,14 @@ contract GovChecker is OwnableUpgradeable {
      * @param _addr address of registry
      * @return A boolean that indicates if the operation was successful.
      */
-    event SetRegistry(address indexed addr); 
-    
+    event SetRegistry(address indexed addr);
+
     function setRegistry(address _addr) public onlyOwner {
         require(_addr != address(0), "Address should be non-zero");
         reg = IRegistry(_addr);
         emit SetRegistry(_addr);
     }
-    
+
     modifier onlyGov() {
         require(getGovAddress() == msg.sender, "No Permission");
         _;
@@ -48,7 +48,11 @@ contract GovChecker is OwnableUpgradeable {
     }
 
     modifier anyGov() {
-        require(getGovAddress() == msg.sender || IGov(getGovAddress()).isMember(msg.sender), "No Permission");
+        require(
+            getGovAddress() == msg.sender ||
+                IGov(getGovAddress()).isMember(msg.sender),
+            "No Permission"
+        );
         _;
     }
 

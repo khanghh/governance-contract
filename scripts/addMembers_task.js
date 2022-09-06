@@ -11,11 +11,8 @@ async function addMembers(hre, accounts, govContracts, configPath) {
 
   const U2B = ethers.utils.toUtf8Bytes;
 
-  let members = deployConfig.members;
-  if (accounts.length != members.length) {
-    console.log("accounts length is not equal members length");
-    return;
-  }
+  const members = deployConfig.members.map((mem, idx) => ({ ...mem, account: accounts[idx] }))
+
   const deployer = accounts[0]
 
   GL = "30000000"; //ethers.BigNumber.from(21000 * 1500);
@@ -27,22 +24,23 @@ async function addMembers(hre, accounts, govContracts, configPath) {
   const duration = await govDelegator.getMinVotingDuration();
   console.log("staking");
   // skip first member
-  for (idx = 1; idx < accounts.length; idx++) {
-    tx = await staking.connect(accounts[idx]).deposit({ value: largeToString(members[idx].stake), gasLimit: txParam.gasLimit, gasPrice: txParam.gasPrice });
+  for (idx = 1; idx < members.length; idx++) {
+    tx = await staking.connect(members[idx].account).deposit({ value: largeToString(members[idx].stake), gasLimit: txParam.gasLimit, gasPrice: txParam.gasPrice });
     txs.push(tx);
   }
   console.log("staking finished");
-  // skip first member
-  for (idx = 1; idx < accounts.length; idx++) {
-    console.log(`=> Submit proposal add member ${members[idx].name}`);
 
+  let ballotId = ballotLen
+  // skip first member
+  for (idx = 1; idx < members.length; idx++) {
+    console.log(`=> Submit proposal add member ${members[idx].name}`);
     tx = await govDelegator
       .connect(deployer)
       .addProposalToAddMember(
         [
-          accounts[idx].address,
-          accounts[idx].address,
-          accounts[idx].address,
+          members[idx].account.address,
+          members[idx].account.address,
+          members[idx].account.address,
           U2B(members[idx].name),
           members[idx].id,
           U2B(members[idx].ip),
@@ -55,11 +53,13 @@ async function addMembers(hre, accounts, govContracts, configPath) {
       );
     txs.push(tx);
 
-    const ballotId = ballotLen.add(BigNumber.from(1));
-    console.log("ballotId", ballotLen.toNumber());
-    for (memIdx = 0; memIdx < Math.ceil(idx * 51 / 100); memIdx++) {
+    ballotId = ballotId.add(BigNumber.from(1));
+    console.log("ballotId:", ballotId.toNumber());
+    const needVote = Math.ceil(idx * 51 / 100)
+    console.log("needVote:", needVote)
+    for (memIdx = 0; memIdx < needVote; memIdx++) {
       console.log(`${members[memIdx].name} voted: yes`);
-      tx = await govDelegator.connect(accounts[memIdx]).vote(ballotId, true, txParam);
+      tx = await govDelegator.connect(members[memIdx].account).vote(ballotId, true, txParam);
       txs.push(tx);
     }
   }
@@ -77,4 +77,5 @@ async function addMembers(hre, accounts, govContracts, configPath) {
     }
   }
 }
+
 module.exports = { addMembers };
