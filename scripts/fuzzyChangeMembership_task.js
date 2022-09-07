@@ -61,6 +61,7 @@ async function addMember(hre, govMembers, govContracts, memToAdd) {
   let isAllOk = false
   for (let i = 0; i < receipts.length; i++) {
     const receipt = receipts[i]
+    const hash = receipt.transactionHash
     if (receipt && receipt.status == 1) {
       console.log(`${i}. ${hash} is ok`)
     }
@@ -120,13 +121,14 @@ async function removeMember(hre, govMembers, govContracts, memToRemove) {
 
   let receipts = []
   for (i = 0; i < txs.length; i++) {
-    hash = txs[i].hash;
+    const hash = txs[i].hash;
     receipts.push(ethers.provider.waitForTransaction(hash))
   }
   receipts = await Promise.all(receipts)
   let isAllOk = false
   for (let i = 0; i < receipts.length; i++) {
     const receipt = receipts[i]
+    const hash = receipt.transactionHash
     if (receipt && receipt.status == 1) {
       console.log(`${i}. ${hash} is ok`)
     }
@@ -161,32 +163,37 @@ async function fuzzyChangeMembership(hre, accounts, govContracts, confPath) {
   const { govDelegator } = govContracts
   const members = deployConfig.members.map((mem, idx) => ({ ...mem, account: accounts[idx] }))
 
-  const getRandomMembers = (members) => {
+  const getRandomMembers = (members, count) => {
     if (!members || members.length <= 0) return []
+    const tempMembers = [...members]
     const ret = []
-    const count = Math.floor(Math.random() * 5);
-    for (let i = 0; i < count; i++) {
-      ret.push(members[Math.floor(Math.random() * members.length)])
+    while (count--) {
+      const idx = Math.floor(Math.random() * tempMembers.length);
+      ret.push(tempMembers[idx]);
+      tempMembers.splice(idx, 1);
     }
     return ret
   }
 
+  let govMembers = await getGovMemers(hre, members, govDelegator)
   while (true) {
-    let govMembers = await getGovMemers(hre, members, govDelegator)
     let notGovMembers = members.filter(item => !govMembers.includes(item));
-    const memsToAdd = getRandomMembers(notGovMembers)
+    let count = Math.floor(Math.random() * (notGovMembers.length))
+    const memsToAdd = getRandomMembers(notGovMembers, count)
     if (memsToAdd.length > 0) {
       console.log("Begin add members:", memsToAdd.map(item => item.name))
       for (const memToAdd of memsToAdd) {
         await addMember(hre, govMembers, govContracts, memToAdd)
-        notGovMembers = members.filter(item => !govMembers.includes(item));
+        govMembers = await getGovMemers(hre, members, govDelegator)
       }
     }
-    const memsToRemove = getRandomMembers(govMembers)
+    count = Math.floor(Math.random() * (govMembers.length / 2))
+    const memsToRemove = getRandomMembers(govMembers, count)
     if (memsToRemove.length > 0) {
       console.log("Begin remove members:", memsToRemove.map(item => item.name))
       for (const memToRemove of memsToRemove) {
         await removeMember(hre, govMembers, govContracts, memToRemove)
+        govMembers = await getGovMemers(hre, members, govDelegator)
       }
     }
   }

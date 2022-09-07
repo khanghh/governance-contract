@@ -1,14 +1,12 @@
-const { loadJSONSync } = require('./utils')
 const fs = require('fs')
 
 async function changeEnvVal(hre, accounts, govContracts, envName, types, values, msg) {
   const ethers = hre.ethers;
   const U2B = ethers.utils.toUtf8Bytes;
-  const B2U = ethers.utils.toUtf8String;
   const BigNumber = hre.ethers.BigNumber;
 
   const deployer = accounts[0]
-  const { govDelegator, envDelegator, ballotStorage } = govContracts
+  const { staking, govDelegator, envDelegator, ballotStorage } = govContracts
 
   GL = "30000000"; //ethers.BigNumber.from(21000 * 1500);
   maxPFee = "100" + "0".repeat(9);
@@ -22,23 +20,32 @@ async function changeEnvVal(hre, accounts, govContracts, envName, types, values,
   const bfBlockPer = await envDelegator.getBlocksPer();
   const bfBlockCreationTime = await envDelegator.getBlockCreationTime();
 
-  const govMems = []
-  const currenNodeNum = (await govDelegator.getNodeLength()).toNumber()
-  console.log("Governance members:")
-  const getGovMem = async function (idx) {
+  let govMembers = []
+  const getMemberInfo = async function (idx) {
     const nodeInfo = await govDelegator.getNode(idx)
-    const govMemName = ethers.utils.toUtf8String(nodeInfo.name)
-    return members.find(mem => mem.name == govMemName)
+    const addr = await govDelegator.getMember(idx)
+    const lockedBalance = await staking.lockedBalanceOf(addr)
+    const locked = ethers.utils.formatEther(lockedBalance) + ' ETH'
+    const name = ethers.utils.toUtf8String(nodeInfo.name)
+    const enode = nodeInfo.enode
+    const ip = ethers.utils.toUtf8String(nodeInfo.ip)
+    const port = nodeInfo.port.toNumber()
+    return { name, addr, enode, ip, port, locked }
   }
+  const currenNodeNum = (await govDelegator.getNodeLength()).toNumber()
   for (let idx = 1; idx <= currenNodeNum; idx++) {
-    govMems.push(getGovMem(idx))
+    govMembers.push(getMemberInfo(idx))
   }
-  govMems = await Promise.all(votingMembers)
-  console.log(govMems.map(item => item.name))
+  govMembers = await Promise.all(govMembers)
+  for (const govMem of govMembers) {
+    govMem.account = accounts.find(acc => acc.address == govMem.addr)
+  }
+  console.log("Governace member:")
+  console.log(govMembers.map(mem => mem.name))
 
   console.log(`=> Submit proposal changeEnv`);
-  let tx = await govDelegator
-    .connect(deployer)
+  tx = await govDelegator
+    .connect(govMembers[0].account)
     .addProposalToChangeEnv(
       ethers.utils.keccak256(U2B(envName)),
       2,
@@ -47,21 +54,16 @@ async function changeEnvVal(hre, accounts, govContracts, envName, types, values,
       86400,
       txParam
     );
-  let receipt = await ethers.provider.waitForTransaction(tx.hash)
-  if (receipt.status == 1) {
-    console.log(`tx: ${tx.hash} is ok`)
-  } else {
-    console.log(`tx: ${tx.hash} is not ok`)
-  }
+  txs.push(tx);
 
   const ballotId = ballotLen.add(BigNumber.from(1));
   console.log("ballotId", ballotId);
-  const needVoteNum = Math.ceil(accounts.length * 51 / 100)
+  const needVoteNum = Math.ceil(govMembers.length * 51 / 100)
   console.log('Need vote:', needVoteNum)
   console.log('Begin voting')
   for (let idx = 0; idx < needVoteNum; idx++) {
-    console.log(`${govMems[idx]} voted: yes`);
-    tx = await govDelegator.connect(accounts[idx]).vote(ballotId, true, txParam);
+    console.log(`${govMembers[idx].name} voted: yes`);
+    tx = await govDelegator.connect(govMembers[idx].account).vote(ballotId, true, txParam);
     txs.push(tx);
   }
 
@@ -83,10 +85,10 @@ async function changeEnvVal(hre, accounts, govContracts, envName, types, values,
   const afterMP = await envDelegator.getMaxPriorityFeePerGas();
   const afterGLB = await envDelegator.getGasLimitAndBaseFee();
   const afterMB = await envDelegator.getMaxBaseFee();
-  const afBlockPer = await envDelegator.getBlocksPer();
+  const afBlocksPer = await envDelegator.getBlocksPer();
   const afBlockCreationTime = await envDelegator.getBlockCreationTime();
   console.log("BlockCreationTime", bfBlockCreationTime.toNumber(), "->", afBlockCreationTime.toNumber());
-  console.log("BlockPer", bfBlockPer.toNumber(), "->", afBlockPer.toNumber());
+  console.log("BlocksPer", bfBlockPer.toNumber(), "->", afBlocksPer.toNumber());
   // console.log("blockGasLimit", bfGLB[0].toNumber(), "->", afterGLB[0].toNumber());
   // console.log("baseFeeMaxChangeRate", bfGLB[1].toNumber(), "->", afterGLB[1].toNumber());
   // console.log("gasTargetPercentage", bfGLB[2].toNumber(), "->", afterGLB[2].toNumber());
