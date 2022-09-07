@@ -19,29 +19,29 @@ async function removeMember(hre, accounts, govContracts, configPath, memberName)
   }
   console.log("Member to remove:", memToRemove.name)
 
-  const votingMembers = []
   const currenNodeNum = (await govDelegator.getNodeLength()).toNumber()
-  console.log("Voting member:")
-  for (let idx = 1; idx <= currenNodeNum; idx++) {
+  let votingMembers = []
+  console.log("Governance members:")
+  const getGovMem = async function (idx) {
     const nodeInfo = await govDelegator.getNode(idx)
     const govMemName = ethers.utils.toUtf8String(nodeInfo.name)
-    const govMem = members.find(mem => mem.name == govMemName)
-    if (govMem) {
-      console.log(govMemName)
-      votingMembers.push(govMem)
-    }
+    return members.find(mem => mem.name == govMemName)
   }
+  for (let idx = 1; idx <= currenNodeNum; idx++) {
+    votingMembers.push(getGovMem(idx))
+  }
+  votingMembers = await Promise.all(votingMembers)
+  console.log(votingMembers.map(item => item.name))
 
   GL = "30000000"; //ethers.BigNumber.from(21000 * 1500);
   maxPFee = "100" + "0".repeat(9);
   let txParam = { gasLimit: GL, gasPrice: "110" + "0".repeat(9) };
-  let ballotLen = await govDelegator.ballotLength();
   let txs = [];
 
   console.log(`=> Submit proposal remove member ${memToRemove.name}`);
   const duration = await govDelegator.getMinVotingDuration();
   const lockAmount = hre.ethers.utils.parseUnits('1500000', 18)
-  tx = await govDelegator
+  let tx = await govDelegator
     .connect(deployer)
     .addProposalToRemoveMember(
       memToRemove.addr,
@@ -50,19 +50,25 @@ async function removeMember(hre, accounts, govContracts, configPath, memberName)
       duration,
       txParam
     );
-  txs.push(tx);
+  let receipt = await ethers.provider.waitForTransaction(tx.hash)
+  if (receipt.status == 1) {
+    console.log(`Proposal submited. tx:`, receipt.transactionHash)
+  } else {
+    console.log(`Failed to submit proposal. tx:`, receipt.transactionHash)
+  }
 
-  const ballotId = ballotLen.add(BigNumber.from(1));
+  const ballotId = await govDelegator.ballotLength();
   console.log("ballotId:", ballotId.toNumber())
   const needVote = Math.ceil(votingMembers.length * 51 / 100)
   console.log('Need vote:', needVote)
   console.log('Begin voting')
   for (let idx = 0; idx < needVote; idx++) {
     console.log(`${votingMembers[idx].name} voted: yes`);
-    tx = await govDelegator.connect(votingMembers[idx].account).vote(ballotId, true, txParam);
+    tx = govDelegator.connect(votingMembers[idx].account).vote(ballotId, true, txParam);
     txs.push(tx);
   }
 
+  txs = await Promise.all(txs)
   fs.writeFileSync("./deployments/txs.json", JSON.stringify(txs, null, 2), "utf-8");
 
   const receipts = []

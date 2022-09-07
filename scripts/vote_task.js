@@ -28,6 +28,7 @@ async function voteBallot(hre, accounts, govContracts, confPath, accIndex, ballo
     console.log(`tx ${tx.hash} is ok `,)
   } else {
     console.log(`tx ${tx.hash} is not ok `,)
+    console.log(receipt)
   }
 }
 

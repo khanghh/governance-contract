@@ -24,17 +24,20 @@ async function changeEnvVal(hre, accounts, govContracts, envName, types, values,
 
   const govMems = []
   const currenNodeNum = (await govDelegator.getNodeLength()).toNumber()
-  console.log("Governace member:")
-  for (let idx = 1; idx <= currenNodeNum; idx++) {
+  console.log("Governance members:")
+  const getGovMem = async function (idx) {
     const nodeInfo = await govDelegator.getNode(idx)
     const govMemName = ethers.utils.toUtf8String(nodeInfo.name)
-    govMems.push(govMemName)
-    console.log(govMemName)
+    return members.find(mem => mem.name == govMemName)
   }
+  for (let idx = 1; idx <= currenNodeNum; idx++) {
+    govMems.push(getGovMem(idx))
+  }
+  govMems = await Promise.all(votingMembers)
+  console.log(govMems.map(item => item.name))
 
   console.log(`=> Submit proposal changeEnv`);
-  console.log(deployer.address)
-  tx = await govDelegator
+  let tx = await govDelegator
     .connect(deployer)
     .addProposalToChangeEnv(
       ethers.utils.keccak256(U2B(envName)),
@@ -45,7 +48,6 @@ async function changeEnvVal(hre, accounts, govContracts, envName, types, values,
       txParam
     );
   let receipt = await ethers.provider.waitForTransaction(tx.hash)
-  console.log(receipt)
   if (receipt.status == 1) {
     console.log(`tx: ${tx.hash} is ok`)
   } else {

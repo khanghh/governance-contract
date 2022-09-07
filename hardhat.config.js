@@ -11,6 +11,7 @@ const setup = require("./scripts/setup_task").setup;
 const changeEnv = require("./scripts/changeEnv_task").changeEnvVal;
 const deployGov = require("./scripts/deploy_task").deployGov;
 const listMembers = require("./scripts/listAllMember_task").listMembers;
+const fuzzyChangeMembership = require("./scripts/fuzzyChangeMembership_task").fuzzyChangeMembership;
 const getVotingInfo = require("./scripts/getVotingInfo_task").getVotingInfo;
 const voteBallot = require("./scripts/vote_task").voteBallot;
 const listBlockMiners = require("./scripts/listBlockMiners_task").listBlockMiners;
@@ -64,12 +65,19 @@ task("addNewMember", "Add new member")
     await addNewMember(hre, accounts, govContracts, taskArgs.conf, taskArgs.name);
   })
 
-task("removeMember", "Add new member")
+task("removeMember", "add new member")
   .addParam("conf")
   .addParam("name")
-  .setAction(async (taskArgs, hre) => {
+  .setAction(async (taskargs, hre) => {
     const { accounts, govContracts } = await setup(hre)
-    await removeMember(hre, accounts, govContracts, taskArgs.conf, taskArgs.name);
+    await removeMember(hre, accounts, govContracts, taskargs.conf, taskargs.name);
+  })
+
+task("fuzzyChangeMembership", "fuzzy change membership")
+  .addParam("conf")
+  .setAction(async (taskargs, hre) => {
+    const { accounts, govContracts } = await setup(hre)
+    await fuzzyChangeMembership(hre, accounts, govContracts, taskargs.conf);
   })
 
 task("votingInfo", "Get voting ballot info")
@@ -95,10 +103,10 @@ task("changeMP", "Change maxPrioirtyFeePerGas")
   .setAction(async (args, hre) => {
     hre.ethers.provider.getBlock()
     const { accounts, govContracts } = await setup(hre);
-    let envName = "blockPer";
+    let envName = "blocksPer";
     let envTypes = ["uint256"];
     let envValue = [args.envValue];
-    envMsg = "change blockPer";
+    envMsg = "change blocksPer";
     await changeEnv(hre, accounts, govContracts, envName, envTypes, envValue, envMsg);
   });
 
