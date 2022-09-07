@@ -51,8 +51,8 @@ async function deployGov(hre, accounts, configPath) {
   let Gov = await hre.ethers.getContractFactory("Gov", deployer);
   const gov = await Gov.deploy(govImp.address, { gasLimit: txParam.gasLimit, gasPrice: txParam.gasPrice, nonce: txnonce++ });
 
-  // console.log("Waiting for receipt...")
-  // await Promise.all([staking.deployed(), ballotStorage.deployed(), envStorage.deployed(), govImp.deployed(), gov.deployed()]);
+  console.log("Waiting for receipt...")
+  await Promise.all([staking.deployed(), ballotStorage.deployed(), envStorage.deployed(), govImp.deployed(), gov.deployed()]);
 
   // Initialize environment storage
   const envDelegator = await hre.ethers.getContractAt("EnvStorageImp", envStorage.address, deployer); //EnvStorageImp.at(envStorage.address);
